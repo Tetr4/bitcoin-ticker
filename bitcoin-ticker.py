@@ -3,11 +3,9 @@
 import requests
 import json
 import time
-import math
 from papirus import PapirusComposite
 from PIL import Image, ImageDraw
 from collections import deque
-from random import randint
 
 # dimensions
 composite = PapirusComposite(False)
@@ -55,7 +53,6 @@ while True:
 		print(e)
 		time.sleep(updateRate)
 		continue
-
 	rateText = request.json()['price_eur']
 	rateValue = ''.join(c for c in rateText if c.isdigit() or c == ',')
 	rateValue = float(rateValue.replace(',', '.'))
