@@ -30,7 +30,7 @@ graphDraw = ImageDraw.Draw(composite.image)
 graphRateRange = 50 # upper/lower bound relative to current rate in euro
 
 # rate
-rateSize = 19
+rateSize = 20
 ratePosX = graphPosX # left aligned with graph
 ratePosY = graphPosY/2 - rateSize/2 # center in upper part
 composite.AddText('',
