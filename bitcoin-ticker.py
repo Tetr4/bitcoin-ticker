@@ -71,7 +71,7 @@ while True:
 		barHeight = max(0, min(graphHeight, barHeight)) # clamp
 		barEnd = graphPosY + graphHeight
 		barStart = barEnd - barHeight
-		graphDraw.rectangle([graphPosX+i, barStart, graphPosX+i+1, barEnd], fill="black")
+		graphDraw.line([graphPosX+i, barStart, graphPosX+i, barEnd], fill="black")
 
 	# draw
 	if numPartialUpdates < updatesUntilFullRedraw:
