@@ -1,85 +1,110 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import requests
-import json
 import time
 from papirus import PapirusComposite
 from PIL import Image, ImageDraw
 from collections import deque
 
-# dimensions
-composite = PapirusComposite(False)
-width = composite.papirus.width
-height = composite.papirus.height
-paddingX = 10
-paddingY = 20
+class BitcoinTicker:
+	api = 'https://bitcoinapi.de/widget/current-btc-price/rate.json?culture=de'
+	updateRate = 60 # seconds
+	updatesUntilFullRedraw = 5
+	logo = 'bitcoin.bmp'
+	paddingX = 10
+	paddingY = 20
+	graphHeightRatio = 0.5
+	graphRateRange = 50 # upper/lower bound relative to current rate in euro
+	rateTextSize = 20
 
-# logo
-logoSide = height - paddingY*2
-composite.AddImg('bitcoin.bmp',
-		x=paddingX,
-		y=paddingY,
-		size=(logoSide,logoSide))
+	def __init__(self):
+		self.composite = PapirusComposite(False)
+		width = self.composite.papirus.width
+		height = self.composite.papirus.height
 
-# graph
-graphPosX = logoSide + paddingX*2 # next to logo
-graphPosY = 0.5 * height # lower part
-graphWidth = width - graphPosX
-graphHeight = height - graphPosY
-graphDraw = ImageDraw.Draw(composite.image)
-graphRateRange = 50 # upper/lower bound relative to current rate in euro
+		# logo
+		logoSide = height - self.paddingY*2
+		self.composite.AddImg(self.logo,
+				x=self.paddingX,
+				y=self.paddingY,
+				size=(logoSide,logoSide))
 
-# rate
-rateSize = 20
-ratePosX = graphPosX # left aligned with graph
-ratePosY = graphPosY/2 - rateSize/2 # center in upper part
-composite.AddText('',
-		x=ratePosX,
-		y=ratePosY,
-		size=rateSize,
-		Id='rate')
+		# graph
+		graphPosX = logoSide + self.paddingX*2 # next to logo
+		graphPosY = (1 - self.graphHeightRatio) * height # lower part
+		graphWidth = width - graphPosX
+		graphHeight = height - graphPosY
+		self.graph = Graph(graphPosX, graphPosY, graphWidth, graphHeight)
 
-# update loop
-updateRate = 60 # seconds
-updatesUntilFullRedraw = 5
-numPartialUpdates = updatesUntilFullRedraw # full redraw initially
-historicalRates = deque([0]*graphWidth, maxlen=graphWidth)
-while True:
-	# get rate from api
-	try:
-		request = requests.get('https://bitcoinapi.de/widget/current-btc-price/rate.json?culture=de')
-	except requests.exceptions.RequestException as e:
-		# retry
-		print(e)
-		time.sleep(updateRate)
-		continue
-	rateText = request.json()['price_eur']
-	rateValue = ''.join(c for c in rateText if c.isdigit() or c == ',')
-	rateValue = float(rateValue.replace(',', '.'))
-	print(rateText)
+		# rate
+		ratePosX = graphPosX # left aligned with graph
+		ratePosY = graphPosY/2 - self.rateTextSize/2 # center in upper part
+		self.composite.AddText('',
+				x=ratePosX,
+				y=ratePosY,
+				size=self.rateTextSize,
+				Id='rate')
 
-	# update rate
-	composite.UpdateText('rate', rateText)
+	def start(self):
+		numPartialUpdates = self.updatesUntilFullRedraw # full redraw initially
+		while True:
+			# get rate from api
+			try:
+				rate = self.getRate()
+			except requests.exceptions.RequestException as e:
+				print(e)
+				time.sleep(self.updateRate)
+				continue # retry
 
-	# update graph
-	historicalRates.append(rateValue)
-	high = rateValue + graphRateRange/2
-	low = rateValue - graphRateRange/2
-	graphDraw.rectangle([graphPosX, graphPosY, graphPosX+graphWidth, graphPosY+graphHeight], fill="white") # clear
-	for i, rate in enumerate(historicalRates):
-		barHeight = (rate-low)/(high-low) * graphHeight
-		barHeight = max(0, min(graphHeight, barHeight)) # clamp
-		barEnd = graphPosY + graphHeight
-		barStart = barEnd - barHeight
-		graphDraw.line([graphPosX+i, barStart, graphPosX+i, barEnd], fill="black")
+			# update rate
+			rateText = u'%.2f €' % rate
+			print(rateText)
+			self.composite.UpdateText('rate', rateText)
 
-	# draw
-	if numPartialUpdates < updatesUntilFullRedraw:
-		composite.WriteAll(partialUpdate=True)
-		numPartialUpdates += 1
-	else:
-		composite.WriteAll(partialUpdate=False)
-		numPartialUpdates = 0
+			# update graph
+			self.graph.add(rate)
+			high = rate + self.graphRateRange/2
+			low = rate - self.graphRateRange/2
+			self.graph.draw(self.composite.image, low, high)
 
-	# delay
-	time.sleep(updateRate)
+			# draw
+			if numPartialUpdates < self.updatesUntilFullRedraw:
+				self.composite.WriteAll(partialUpdate=True)
+				numPartialUpdates += 1
+			else:
+				self.composite.WriteAll(partialUpdate=False)
+				numPartialUpdates = 0
+
+			# delay
+			time.sleep(self.updateRate)
+
+	def getRate(self):
+		response = requests.get(self.api)
+		rateText = response.json()['price_eur']
+		rate = ''.join(c for c in rateText if c.isdigit() or c == ',')
+		return float(rate.replace(',', '.'))
+
+class Graph:
+	def __init__(self, x, y, width, height):
+		self.x = x
+		self.y = y
+		self.width = width
+		self.height = height
+		self.data = deque([0]*width, maxlen=width)
+
+	def add(self, value):
+		self.data.append(value)
+
+	def draw(self, image, low, high):
+		imgDraw = ImageDraw.Draw(image)
+		imgDraw.rectangle([self.x, self.y, self.x+self.width, self.y+self.height], fill="white") # clear
+		for i, value in enumerate(self.data):
+			barHeight = (value-low)/(high-low) * self.height
+			barHeight = max(0, min(self.height, barHeight)) # clamp
+			barEnd = self.y + self.height
+			barStart = barEnd - barHeight
+			imgDraw.line([self.x+i, barStart, self.x+i, barEnd], fill="black")
+
+if __name__ == "__main__":
+	ticker = BitcoinTicker()
+	ticker.start()
