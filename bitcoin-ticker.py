@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import requests
-import time
+import threading
 from papirus import PapirusComposite
 from PIL import Image, ImageDraw
 from collections import deque
@@ -45,15 +45,32 @@ class BitcoinTicker:
 				size=self.rateTextSize,
 				Id='rate')
 
+		self.stopEvent = threading.Event()
+
 	def start(self):
+		self.stopEvent.clear()
+		self.thread = threading.Thread(target=self.run)
+		self.thread.start()
+
+	def stop(self):
+		self.stopEvent.set()
+		self.thread.join()
+
+	def isRunning(self):
+		return not self.stopEvent.is_set()
+
+	def sleep(self, duration):
+		self.stopEvent.wait(timeout=duration)
+
+	def run(self):
 		numPartialUpdates = self.updatesUntilFullRedraw # full redraw initially
-		while True:
+		while self.isRunning():
 			# get rate from api
 			try:
 				rate = self.getRate()
 			except requests.exceptions.RequestException as e:
 				print(e)
-				time.sleep(self.updateRate)
+				self.sleep(self.updateRate)
 				continue # retry
 
 			# update rate
@@ -76,7 +93,7 @@ class BitcoinTicker:
 				numPartialUpdates = 0
 
 			# delay
-			time.sleep(self.updateRate)
+			self.sleep(self.updateRate)
 
 	def getRate(self):
 		response = requests.get(self.api)
@@ -107,4 +124,4 @@ class Graph:
 
 if __name__ == "__main__":
 	ticker = BitcoinTicker()
-	ticker.start()
+	ticker.run() # blocking
