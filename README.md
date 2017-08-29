@@ -8,20 +8,20 @@ Display [bitcoin.de](https://www.bitcoin.de) exchange rate on the [PaPiRus](http
 ## Auto Startup
 1. Install `screen`:
 ```sh
-
 sudo apt-get install screen
 ```
 
 2. Create a startup script at `/home/pi/startup`:
 ```sh
 #!/usr/bin/env bash
-cd ~/bitcoin-ticker && ./ticker.py
+# run ticker in a screen
+screen -dmS ticker /home/pi/bitcoin-ticker/ticker.py
 ```
 
 3. Add the following line to `/etc/rc.local` just before `exit 0`:
 ```sh
-# Run startup script in a screen
-sudo su - pi -c "screen -dm -S startup ~/startup"
+# Run startup script as user pi
+su - pi /home/pi/startup
 ```
 
 4. Restart the Pi with `sudo reboot`.
