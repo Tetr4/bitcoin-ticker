@@ -15,7 +15,7 @@ sudo apt-get install screen
 2. Create a startup script at `/home/pi/startup`:
 ```sh
 #!/usr/bin/env bash
-cd ~/bitcoin-ticker && ./bitcoin-ticker.py
+cd ~/bitcoin-ticker && ./ticker.py
 ```
 
 3. Add the following line to `/etc/rc.local` just before `exit 0`:
