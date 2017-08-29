@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
+import os
 import threading
 from collections import deque
 
@@ -12,9 +13,9 @@ from papirus import PapirusComposite  # requires python2
 
 class BitcoinTicker:
     api = 'https://bitcoinapi.de/widget/current-btc-price/rate.json?culture=de'
+    logo = os.path.join(os.path.dirname(__file__), 'bitcoin.bmp')
     update_rate = 60  # seconds
     max_partial_redraws = 5
-    logo = 'bitcoin.bmp'
     padding_x = 10
     padding_y = 20
     graph_height_ratio = 0.5
